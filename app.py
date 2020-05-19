@@ -37,7 +37,7 @@ class EC2InstanceStack(core.Stack):
 
         # Instance
         instance = ec2.Instance(self, "Instance",
-            instance_type=ec2.InstanceType("t3.nano"),
+            instance_type=ec2.InstanceType("t3a.micro"),
             machine_image=amzn_linux,
             vpc = vpc,
             role = role
