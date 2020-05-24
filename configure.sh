@@ -5,14 +5,16 @@ cat <<EOF > /root/build.sh
 yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 yum-config-manager --enable epel
 
-yum install -y libmicrohttpd-devel jansson-devel \
+yum install -y jansson-devel \
    openssl-devel libsrtp-devel sofia-sip-devel glib2-devel \
    opus-devel libogg-devel libcurl-devel pkgconfig gengetopt \
-   libconfig-devel libtool autoconf automake git  libnice-devel \
+   libconfig-devel libtool autoconf automake git \
    cmake3 libunwind-devel golang cmake doxygen graphviz gengetopt \
    lua lua-devel
 
 yum groupinstall "Development tools" -y
+
+yum-builddep libmicrohttpd libmicrohttpd-devel -
 
 # Libsrtp
 #old
@@ -88,14 +90,27 @@ cd sofia-sip-1.12.11
 ./configure
 make && make install
 
+# Librmicrohttpd
+cd
+yumdownloader --source  libmicrohttpd libmicrohttpd-doc libmicrohttpd-devel
+cd /root/rpmbuild/SPECS
+rpm -ivh ./libmicrohttpd-0.9.33-2.amzn2.0.2.src.rpm
+cd /root/rpmbuild/SPECS
+wget  https://mirror.cedia.org.ec/gnu/libmicrohttpd/libmicrohttpd-0.9.70.tar.gz -O /root/rpmbuild/SOURCES/libmicrohttpd-0.9.70.tar.gz
+sed -i 's/0.9.33/0.9.70/g' libmicrohttpd.spec
+sed -i 's/-tutorial.info/\*/g' libmicrohttpd.spec 
+rpmbuild -bp libmicrohttpd.spec
+rpmbuild -ba libmicrohttpd.spec
+rpm -i /root/rpmbuild/RPMS/x86_64/libmicrohttpd-0.9.70-2.amzn2.0.2.x86_64.rpm
+rpm -i /root/rpmbuild/RPMS/x86_64/libmicrohttpd-devel-0.9.70-2.amzn2.0.2.x86_64.rpm
 
 #  Janus
 cd
 git clone https://github.com/meetecho/janus-gateway.git
 cd janus-gateway
-## Checkout v0.9.4 
-git checkout v0.9.4
+## Checkout v0.9.5
+git checkout v0.9.5
 sh autogen.sh 
-./configure --prefix=/opt/janus --enable-boringssl --enable-dtls-settimeout --enable-docs --enable-plugin-lua --disable-plugin-sip --disable-websockets
-make && make install
+./configure --prefix=/opt/janus --enable-boringssl --enable-dtls-settimeout --enable-docs --enable-plugin-lua --disable-plugin-sip --disable-websockets --enable-rest --disable-mqtt --disable-rabbitmq
+make && make install && make configs
 EOF
