@@ -5,16 +5,16 @@ cat <<EOF > /root/build.sh
 yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
 yum-config-manager --enable epel
 
-yum install -y jansson-devel \
+yum install -y jansson-devel gnutls-devel libgcrypt-devel\
    openssl-devel libsrtp-devel sofia-sip-devel glib2-devel \
    opus-devel libogg-devel libcurl-devel pkgconfig gengetopt \
-   libconfig-devel libtool autoconf automake git \
+   libconfig-devel libtool autoconf automake git  libnice-devel \
    cmake3 libunwind-devel golang cmake doxygen graphviz gengetopt \
    lua lua-devel
 
 yum groupinstall "Development tools" -y
 
-yum-builddep libmicrohttpd libmicrohttpd-devel -
+yum-builddep libmicrohttpd libmicrohttpd-devel libnice-devel -y
 
 # Libsrtp
 #old
@@ -103,6 +103,17 @@ rpmbuild -bp libmicrohttpd.spec
 rpmbuild -ba libmicrohttpd.spec
 rpm -i /root/rpmbuild/RPMS/x86_64/libmicrohttpd-0.9.70-2.amzn2.0.2.x86_64.rpm
 rpm -i /root/rpmbuild/RPMS/x86_64/libmicrohttpd-devel-0.9.70-2.amzn2.0.2.x86_64.rpm
+
+#Libnice
+yumdownloader --source libnice-devel
+rpm -ivh ./libnice-0.1.3-4.amzn2.0.1.src.rpm
+cd /root/rpmbuild/SPECS
+sed -i 's/0.1.3/0.1.16/g' libnice.spec
+wget https://libnice.freedesktop.org/releases/libnice-0.1.16.tar.gz  -O /root/rpmbuild/SOURCES/libnice-0.1.16.tar.gz
+rpmbuild -bp libnice.spec
+rpmbuild -ba libnice.spec
+rpm -i /root/rpmbuild/RPMS/x86_64/libnice-0.1.16-4.amzn2.0.1.x86_64.rpm /root/rpmbuild/RPMS/x86_64/libnice-devel-0.1.16-4.amzn2.0.1.x86_64.rpm
+
 
 #  Janus
 cd
