@@ -35,12 +35,26 @@ class EC2InstanceStack(core.Stack):
 
         role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AmazonEC2RoleforSSM"))
 
+        # Security Group
+        security_group = ec2.SecurityGroup(
+            self,
+            "SecurityGroup",
+            vpc=vpc,
+            allow_all_outbound=True
+        )
+
+        security_group.add_ingress_rule(
+            peer=ec2.Peer().ipv4("0.0.0.0/0"),
+            connection=ec2.Port.tcp(80)
+        )
+
         # Instance
         instance = ec2.Instance(self, "Instance",
             instance_type=ec2.InstanceType("t3a.micro"),
             machine_image=amzn_linux,
             vpc = vpc,
-            role = role
+            role = role,
+            security_group = security_group
             )
 
         # Script in S3 as Asset
