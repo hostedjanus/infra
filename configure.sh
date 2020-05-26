@@ -10,7 +10,7 @@ yum install -y jansson-devel gnutls-devel libgcrypt-devel\
    opus-devel libogg-devel libcurl-devel pkgconfig gengetopt \
    libconfig-devel libtool autoconf automake git  libnice-devel \
    cmake3 libunwind-devel golang cmake doxygen graphviz gengetopt \
-   lua lua-devel
+   lua lua-devel nginx
 
 yum groupinstall "Development tools" -y
 
@@ -124,4 +124,53 @@ git checkout v0.9.5
 sh autogen.sh 
 ./configure --prefix=/opt/janus --enable-boringssl --enable-dtls-settimeout --enable-docs --enable-plugin-lua --disable-plugin-sip --disable-websockets --enable-rest --disable-mqtt --disable-rabbitmq
 make && make install && make configs
+EOF
+
+cat <<EOF > /etc/systemd/system/janus.service
+[Unit]
+Description=Janus WebRTC Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/janus/bin/janus  -C /opt/janus/etc/janus/janus.jcfg -A -L /tmp/janus.log
+Restart=on-abnormal
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+cat <<EOF > /etc/nginx/conf.d/janus.conf
+server {
+    server_name janus.libreservices.host;
+    root /root/janus-gateway/html;
+    listen 80;
+    location / {
+    }  
+    location /janus {
+        proxy_pass http://localhost:8088/janus;
+    }
+    location /admin {
+        proxy_pass http://localhost:7088/admin;
+    }  
+}
+EOF
+
+cat <<EOF > /root/configure.sh
+#!/bin/sh
+#Enable admin api
+sed -i "s/admin_http = false/admin_http = true/g" /opt/janus/etc/janus/janus.transport.http.jcfg
+#sed -i "s/8088/80/g" /opt/janus/etc/janus/janus.transport.http.jcfg
+
+myip=$(curl ifconfig.co/ip -s)
+sed -i "s/#stun_server/stun_server/g" /opt/janus/etc/janus/janus.jcfg
+sed -i "s/#stun_port/stun_port/g" /opt/janus/etc/janus/janus.jcfg
+sed -i "s/#rtp_port_range/rtp_port_range/g" /opt/janus/etc/janus/janus.jcfg
+sed -i "s/#nat_1_1_mapping = \"1.2.3.4\"/nat_1_1_mapping = \"$myip\"/g" /opt/janus/etc/janus/janus.jcfg
+systemctl --system daemon-reload
+systemctl enable janus.service
+systemctl start janus.service
+systemctl start nginx
+rsync -r /root/janus-gateway/html/ /usr/share/nginx/html/
 EOF
