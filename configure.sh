@@ -173,4 +173,5 @@ systemctl enable janus.service
 systemctl start janus.service
 systemctl start nginx
 rsync -r /root/janus-gateway/html/ /usr/share/nginx/html/
+curl -X POST localhost:7088/admin/ --data '{"admin_secret": "janusoverlord","transaction": "FromLocalhost","janus": "add_token","token": "mytoken"}'
 EOF
