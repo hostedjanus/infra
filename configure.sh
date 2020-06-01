@@ -141,19 +141,18 @@ LimitNOFILE=65536
 WantedBy=multi-user.target
 EOF
 
-cat <<EOF > /etc/nginx/conf.d/janus.conf
+cat <<EOF > /root/janus.conf
 server {
-    server_name janus.libreservices.host;
-    root /root/janus-gateway/html;
-    listen 80;
-    location / {
-    }  
-    location /janus {
-        proxy_pass http://localhost:8088/janus;
-    }
-    location /admin {
-        proxy_pass http://localhost:7088/admin;
-    }  
+server_name janus.libreservices.host;
+listen 80;
+location / {
+}
+location /janus {
+proxy_pass http://localhost:8088/janus;
+}
+location /admin {
+proxy_pass http://localhost:7088/admin;
+}
 }
 EOF
 
@@ -163,7 +162,8 @@ cat <<EOF > /root/configure.sh
 sed -i "s/admin_http = false/admin_http = true/g" /opt/janus/etc/janus/janus.transport.http.jcfg
 #sed -i "s/8088/80/g" /opt/janus/etc/janus/janus.transport.http.jcfg
 
-myip=$(curl ifconfig.co/ip -s)
+curl ifconfig.co/ip -s > publicip
+myip=\$(cat publicip)
 sed -i "s/#stun_server/stun_server/g" /opt/janus/etc/janus/janus.jcfg
 sed -i "s/#stun_port/stun_port/g" /opt/janus/etc/janus/janus.jcfg
 sed -i "s/#rtp_port_range/rtp_port_range/g" /opt/janus/etc/janus/janus.jcfg
@@ -171,7 +171,15 @@ sed -i "s/#nat_1_1_mapping = \"1.2.3.4\"/nat_1_1_mapping = \"$myip\"/g" /opt/jan
 systemctl --system daemon-reload
 systemctl enable janus.service
 systemctl start janus.service
-systemctl start nginx
-rsync -r /root/janus-gateway/html/ /usr/share/nginx/html/
+/bin/cp /root/janus.conf /etc/nginx/conf.d/janus.conf
+systemctl restart nginx
+cd /usr/share/nginx/html/ && rsync -r /root/janus-gateway/html/* .
+chmod  0755 /usr/share/nginx/html
+chmod  0644 /usr/share/nginx/html/*
+#Fix demo to work with API REST token
+sed -i 's/:8088//g' *.js
+sed -i 's/:8089//g' *.js
+sed -i 's/\/\/\s*token/token/g' echotest.js
+sleep 30
 curl -X POST localhost:7088/admin/ --data '{"admin_secret": "janusoverlord","transaction": "FromLocalhost","janus": "add_token","token": "mytoken"}'
 EOF
