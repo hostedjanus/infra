@@ -8,6 +8,8 @@ from aws_cdk import (
     core    
 )
 
+from aws_cdk.aws_ecr_assets import DockerImageAsset
+
 dirname = os.path.dirname(__file__)
 
 
@@ -70,7 +72,18 @@ class EC2InstanceStack(core.Stack):
             )
         asset.grant_read(instance.role)
 
-app = core.App()
-EC2InstanceStack(app, "ec2-instance")
 
+class JanusCluster(core.Stack):
+
+    def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
+        super().__init__(scope, id, **kwargs)
+
+        # Janus Image
+        janus_asset = DockerImageAsset(self, "JanusBuildImage",
+        directory=os.path.join(dirname, "janus-image")
+        )
+
+app = core.App()
+#EC2InstanceStack(app, "ec2-instance")
+JanusCluster(app, "janus-cluster")
 app.synth()
