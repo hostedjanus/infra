@@ -96,7 +96,8 @@ RUN set -x \
     && git checkout v0.9.5\
     && sh autogen.sh \
     && ./configure --prefix=/opt/janus --enable-boringssl --enable-dtls-settimeout --enable-docs --enable-plugin-lua --disable-plugin-sip --disable-websockets --enable-rest --disable-mqtt --disable-rabbitmq\
-    && make && make install && make configs
+    && make && make install && make configs \
+    && cd && rm -rf *
 
     COPY run.sh /run.sh
 
