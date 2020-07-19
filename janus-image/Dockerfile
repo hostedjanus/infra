@@ -97,10 +97,12 @@ RUN set -x \
     && sh autogen.sh \
     && ./configure --prefix=/opt/janus --enable-boringssl --enable-dtls-settimeout --enable-docs --enable-plugin-lua --disable-plugin-sip --disable-websockets --enable-rest --disable-mqtt --disable-rabbitmq\
     && make && make install && make configs \
-    && cd && rm -rf *
+    && cd && rm -rf * \
+    && yum -y install screen
 
     COPY run.sh /run.sh
 
-    EXPOSE 80 7088
+    EXPOSE 7088
 
-    CMD  /run.sh
+    RUN ["chmod", "+x", "/run.sh"]
+    ENTRYPOINT  /run.sh
