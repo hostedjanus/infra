@@ -5,6 +5,7 @@ from aws_cdk.aws_s3_assets import Asset
 from aws_cdk import (
     aws_ec2 as ec2,
     aws_iam as iam,
+    aws_ecs as ecs,
     core    
 )
 
@@ -82,6 +83,33 @@ class JanusCluster(core.Stack):
         janus_asset = DockerImageAsset(self, "JanusBuildImage",
         directory=os.path.join(dirname, "janus-image")
         )
+
+        # VPC
+        vpc = ec2.Vpc(self, "VPC",
+        nat_gateways=0,
+        subnet_configuration=[ec2.SubnetConfiguration(name="public",subnet_type=ec2.SubnetType.PUBLIC)]
+        )
+
+        # Create an ECS cluster
+        cluster = ecs.Cluster(self, "JanusCluster",
+        vpc=vpc
+        )
+
+        #Task definition
+        task_definition = ecs.FargateTaskDefinition(self, 'JanusTask')
+
+        task_definition.add_container("Janus",
+        image=ecs.ContainerImage.from_docker_image_asset(janus_asset),
+        cpu=256,
+        memory_limit_mib=512
+        )
+        
+        #Service
+        ecs.FargateService(self, 'JanusService',
+        cluster=cluster,
+        task_definition=task_definition,
+        desired_count=1)
+
 
 app = core.App()
 #EC2InstanceStack(app, "ec2-instance")
