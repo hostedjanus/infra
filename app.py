@@ -11,6 +11,8 @@ from aws_cdk import (
 
 from aws_cdk.aws_ecr_assets import DockerImageAsset
 
+from aws_cdk.aws_logs import RetentionDays
+
 dirname = os.path.dirname(__file__)
 
 
@@ -101,9 +103,15 @@ class JanusCluster(core.Stack):
         task_definition.add_container("Janus",
         image=ecs.ContainerImage.from_docker_image_asset(janus_asset),
         cpu=256,
-        memory_limit_mib=512
+        memory_limit_mib=512,
+        logging=ecs.LogDriver.aws_logs(
+            stream_prefix='JanusTask',
+            log_retention=RetentionDays("ONE_DAY")
+        ),
+        health_check=ecs.HealthCheck(command=[
+                "CMD-SHELL", "curl -fs http://localhost:7088/admin | grep error"])
         )
-        
+
         #Service
         ecs.FargateService(self, 'JanusService',
         cluster=cluster,
