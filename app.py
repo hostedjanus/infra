@@ -116,7 +116,8 @@ class JanusCluster(core.Stack):
         ecs.FargateService(self, 'JanusService',
         cluster=cluster,
         task_definition=task_definition,
-        desired_count=1)
+        desired_count=1,
+        assign_public_ip=True)
 
 
 app = core.App()
