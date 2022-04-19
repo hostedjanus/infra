@@ -15,67 +15,6 @@ from aws_cdk.aws_logs import RetentionDays
 
 dirname = os.path.dirname(__file__)
 
-
-class EC2InstanceStack(core.Stack):
-
-    def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
-        super().__init__(scope, id, **kwargs)
-
-        # VPC
-        vpc = ec2.Vpc(self, "VPC",
-            nat_gateways=0,
-            subnet_configuration=[ec2.SubnetConfiguration(name="public",subnet_type=ec2.SubnetType.PUBLIC)]
-            )
-
-        # AMI 
-        amzn_linux = ec2.MachineImage.latest_amazon_linux(
-            generation=ec2.AmazonLinuxGeneration.AMAZON_LINUX_2,
-            edition=ec2.AmazonLinuxEdition.STANDARD,
-            virtualization=ec2.AmazonLinuxVirt.HVM,
-            storage=ec2.AmazonLinuxStorage.GENERAL_PURPOSE
-            )
-
-        # Instance Role and SSM Managed Policy
-        role = iam.Role(self, "InstanceSSM", assumed_by=iam.ServicePrincipal("ec2.amazonaws.com"))
-
-        role.add_managed_policy(iam.ManagedPolicy.from_aws_managed_policy_name("service-role/AmazonEC2RoleforSSM"))
-
-        # Security Group
-        security_group = ec2.SecurityGroup(
-            self,
-            "SecurityGroup",
-            vpc=vpc,
-            allow_all_outbound=True
-        )
-
-        security_group.add_ingress_rule(
-            peer=ec2.Peer().ipv4("0.0.0.0/0"),
-            connection=ec2.Port.tcp(80)
-        )
-
-        # Instance
-        instance = ec2.Instance(self, "Instance",
-            instance_type=ec2.InstanceType("t3a.micro"),
-            machine_image=amzn_linux,
-            vpc = vpc,
-            role = role,
-            security_group = security_group
-            )
-
-        # Script in S3 as Asset
-        asset = Asset(self, "Asset", path=os.path.join(dirname, "configure.sh"))
-        local_path = instance.user_data.add_s3_download_command(
-            bucket=asset.bucket,
-            bucket_key=asset.s3_object_key
-        )
-
-        # Userdata executes script from S3
-        instance.user_data.add_execute_file_command(
-            file_path=local_path
-            )
-        asset.grant_read(instance.role)
-
-
 class JanusCluster(core.Stack):
 
     def __init__(self, scope: core.Construct, id: str, **kwargs) -> None:
@@ -97,6 +36,14 @@ class JanusCluster(core.Stack):
         vpc=vpc
         )
 
+        # Create a security group
+        security_group = ec2.SecurityGroup(self, "JanusSecurityGroup",
+        vpc=vpc,
+        allow_all_outbound=True
+        )
+
+        security_group.add_ingress_rule(peer=ec2.Peer.any_ipv4(), connection=ec2.Port.tcp(8088), description="Janus")
+
         #Task definition
         task_definition = ecs.FargateTaskDefinition(self, 'JanusTask')
 
@@ -113,14 +60,15 @@ class JanusCluster(core.Stack):
         )
 
         #Service
-        ecs.FargateService(self, 'JanusService',
+        ecs_service = ecs.FargateService(self, 'JanusService',
         cluster=cluster,
         task_definition=task_definition,
         desired_count=1,
-        assign_public_ip=True)
+        assign_public_ip=True,
+        security_group=security_group,
+        enable_execute_command=True)
 
 
 app = core.App()
-#EC2InstanceStack(app, "ec2-instance")
 JanusCluster(app, "janus-cluster")
 app.synth()
